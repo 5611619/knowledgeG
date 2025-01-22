@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模电知识图谱</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #333;
+            position: relative;
+            background-color: rgba(0, 0, 0, 0.8);
+            overflow-y: scroll; /* 在整个页面上启用垂直滚动条 */
+        }
+        h1 {
+            text-align: center;
+            padding: 20px;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        #graph {
+            width: 80%;
+            height: 600px;
+            border: 1px solid #ccc;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            margin: 20px auto;
+            position: relative;
+            z-index: 1;
+            opacity: 0.6;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+   .tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border-radius: 5px;
+            padding: 10px;
+            font-size: 16px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            max-width: 300px;
+            text-align: left;
+        }
+   .node:hover.tooltip {
+            opacity: 1;
+        }
+   .node:hover circle {
+            stroke: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>模电知识图谱</h1>
+    <div id="graph"></div>
+    <canvas id="canvas"></canvas>
+    <script src="https://d3js.org/d3.v6.min.js"></script>
+    <script>
+        // 定义节点数据
+        const nodes = [
+            {
+                id: '模电',
+                isMain: true,
+                tooltip: ''
+            },
+            {
+                id: '半导体器件',
+                tooltip: ''
+            },
+            {
+                id: '二极管',
+                tooltip: '单向导电特性及其在整流、稳压等方面的应用。'
+            },
+            {
+                id: '三极管',
+                tooltip: '放大和开关特性，及其在放大电路中的应用。'
+            },
+            {
+                id: '放大电路',
+                tooltip: ''
+            },
+            {
+                id: '共射极',
+                tooltip: '基本放大电路，具有高增益。'
+            },
+            {
+                id: '共基极',
+                tooltip: '用于特定应用的放大电路。'
+            },
+            {
+                id: '共集极',
+                tooltip: '用于特定应用的放大电路。'
+            },
+            {
+                id: '振荡器电路',
+                tooltip: ''
+            },
+            {
+                id: '正弦波振荡器',
+                tooltip: '如RC、LC振荡器，用于产生连续波信号。'
+            },
+            {
+                id: '非正弦波振荡器',
+                tooltip: '用于产生方波、锯齿波等信号。'
+            },
+            {
+                id: '滤波器',
+                tooltip: ''
+            },
+            {
+                id: '低通滤波器',
+                tooltip: '用于信号频率选择的电路。'
+            },
+            {
+                id: '高通滤波器',
+                tooltip: '用于信号频率选择的电路。'
+            },
+            {
+                id: '带通滤波器',
+                tooltip: '用于特定频段信号的选择或抑制。'
+            },
+            {
+                id: '带阻滤波器',
+                tooltip: '用于特定频段信号的选择或抑制。'
+            },
+            {
+                id: '调制技术',
+                tooltip: ''
+            },
+            {
+                id: '调幅（AM）',
+                tooltip: '信号传输的基本调制方法。'
+            },
+            {
+                id: '调频（FM）',
+                tooltip: '信号传输的基本调制方法。'
+            },
+            {
+                id: '反馈与稳定性',
+                tooltip: '分析反馈在不同电路中的作用。'
+            },
+            {
+                id: '电源电路',
+                tooltip: ''
+            },
+            {
+                id: '线性电源',
+                tooltip: '稳压器的基本原理及设计。'
+            },
+            {
+                id: '开关电源',
+                tooltip: '高效电源转换电路的设计与应用。'
+            },
+
+
+
+
+
+
+        ];
+
+        // 定义链接数据
+        const links = [
+            { source: '模电', target: '半导体器件', relation: '知识点' },
+            { source: '半导体器件', target: '二极管', relation: '包含' },
+            { source: '半导体器件', target: '三极管', relation: '包含' },
+            { source: '模电', target: '放大电路', relation: '知识点' },
+            { source: '放大电路', target: '共射极', relation: '包含' },
+            { source: '放大电路', target: '共基极', relation: '包含' },
+            { source: '放大电路', target: '共集极', relation: '包含' },
+            { source: '模电', target: '振荡器电路', relation: '知识点' },
+            { source: '振荡器电路', target: '正弦波振荡器', relation: '包含' },
+            { source: '振荡器电路', target: '非正弦波振荡器', relation: '包含' },
+            { source: '模电', target: '滤波器', relation: '知识点' },
+            { source: '滤波器', target: '低通滤波器', relation: '包含' },
+            { source: '滤波器', target: '高通滤波器', relation: '包含' },
+            { source: '滤波器', target: '带通滤波器', relation: '包含' },
+            { source: '滤波器', target: '带阻滤波器', relation: '包含' },
+            { source: '模电', target: '调制技术', relation: '知识点' },
+            { source: '调制技术', target: '调幅（AM）', relation: '包含' },
+            { source: '调制技术', target: '调频（FM）', relation: '包含' },
+            { source: '模电', target: '反馈与稳定性', relation: '知识点' },
+            { source: '模电', target: '电源电路', relation: '知识点' },
+            { source: '电源电路', target: '线性电源', relation: '包含' },
+            { source: '电源电路', target: '开关电源', relation: '包含' },
+
+
+        ];
+
+        // 获取 graph 元素的尺寸
+        const graph = document.getElementById('graph');
+        const width = graph.clientWidth;
+        const height = graph.clientHeight;
+
+        // 创建 SVG 元素
+        const svg = d3.select("#graph").append("svg")
+     .attr("width", width)
+     .attr("height", height);
+
+        // 创建力导向图布局
+        const simulation = d3.forceSimulation(nodes)
+     .force("link", d3.forceLink().id(d => d.id).distance(120))
+     .force("charge", d3.forceManyBody().strength(-50))
+     .force("center", d3.forceCenter(width / 2, height / 2));
+
+        // 绘制链接
+        const link = svg.append("g")
+     .attr("class", "links")
+     .selectAll("line")
+     .data(links)
+     .enter().append("line")
+     .attr("stroke", "#999")
+     .attr("stroke-width", 2);
+
+        // 绘制链接标签
+        svg.append("g")
+     .attr("class", "link-labels")
+     .selectAll("text")
+     .data(links)
+     .enter().append("text")
+     .attr("class", "link-label")
+     .attr("text-anchor", "middle")
+     .attr("fill", "#333")
+     .text(d => d.relation);
+
+        // 创建节点组
+        const nodeGroup = svg.append("g")
+     .attr("class", "nodes")
+     .selectAll("g")
+     .data(nodes)
+     .enter().append("g")
+     .attr("class", "node")
+     .on("click", function (event, d) {
+                const query = encodeURIComponent(d.id);
+                window.open(`https://www.baidu.com/s?wd=${query}`, '_blank');
+            })
+     .call(d3.drag()
+         .on("start", dragstarted)
+         .on("drag", dragged)
+         .on("end", dragended));
+
+        // 为节点添加圆形和工具提示
+        nodeGroup.append("circle")
+     .attr("r", d => d.isMain? 36 : 18)
+     .attr("fill", d => d.isMain? "orange" : "lightblue")
+     .append("title")
+     .text(d => d.tooltip);
+
+        // 为节点添加文本标签
+        nodeGroup.append("text")
+     .attr("text-anchor", "middle")
+     .attr("dy", "-1.5em")
+     .attr("fill", "black")
+     .style("font-weight", "bold")
+     .text(d => d.id);
+
+        // 力导向图更新函数
+        simulation.nodes(nodes).on("tick", () => {
+            link.attr("x1", d => d.source.x)
+         .attr("y1", d => d.source.y)
+         .attr("x2", d => d.target.x)
+         .attr("y2", d => d.target.y);
+
+            svg.selectAll(".link-label")
+         .attr("x", (d) => (d.source.x + d.target.x) / 2)
+         .attr("y", (d) => (d.source.y + d.target.y) / 2);
+
+            nodeGroup.attr("transform", d => `translate(${d.x},${d.y})`);
+        });
+
+        simulation.force("link").links(links);
+
+        // 拖拽开始事件处理函数
+        function dragstarted(event) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            event.subject.fx = event.subject.x;
+            event.subject.fy = event.subject.y;
+        }
+
+        // 拖拽中事件处理函数
+        function dragged(event) {
+            event.subject.fx = event.x;
+            event.subject.fy = event.y;
+        }
+
+        // 拖拽结束事件处理函数
+        function dragended(event) {
+            if (!event.active) simulation.alphaTarget(0);
+            event.subject.fx = null;
+            event.subject.fy = null;
+        }
+
+        // 鼠标滚轮缩放（在 #graph 内）
+        let zoomLevel = 1;
+        const zoomFactor = 0.1;
+        const minZoom = 0.1;
+        const maxZoom = 3;
+        graph.addEventListener('wheel', function (event) {
+            event.preventDefault();
+            // 计算新的缩放等级
+            let newZoomLevel = zoomLevel + (event.deltaY < 0? zoomFactor : -zoomFactor);
+            newZoomLevel = Math.max(minZoom, Math.min(newZoomLevel, maxZoom));
+            // 检查缩放后的尺寸是否超出 graph 的范围
+            const scaledWidth = width * newZoomLevel;
+            const scaledHeight = height * newZoomLevel;
+            if (scaledWidth <= graph.clientWidth && scaledHeight <= graph.clientHeight) {
+                zoomLevel = newZoomLevel;
+                svg.attr("transform", `scale(${zoomLevel})`);
+            }
+        });
+
+        // 鼠标滚轮滚动（在 #graph 外）
+        window.addEventListener('wheel', function (event) {
+            // 这里可以添加一些逻辑，例如在需要时阻止默认滚动行为
+            // 例如：event.preventDefault();
+        });
+    </script>
+    <script>
+        // 粒子特效代码
+        class Circle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.r = Math.random() * 10;
+                this._mx = Math.random();
+                this._my = Math.random();
+            }
+            drawCircle(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.r, 0, 360);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(204, 204, 204, 0.3)';
+                ctx.fill();
+            }
+            drawLine(ctx, _circle) {
+                let dx = this.x - _circle.x;
+                let dy = this.y - _circle.y;
+                let d = Math.sqrt(dx * dx + dy * dy);
+                if (d < 150) {
+                    ctx.beginPath();
+                    ctx.moveTo(this.x, this.y);
+                    ctx.lineTo(_circle.x, _circle.y);
+                    ctx.closePath();
+                    ctx.strokeStyle = 'rgba(204, 204, 204, 0.3)';
+                    ctx.stroke();
+                }
+            }
+            move(w, h) {
+                this._mx = (this.x < w && this.x > 0)? this._mx : (-this._mx);
+                this._my = (this.y < h && this.y > 0)? this._my : (-this._my);
+                this.x += this._mx / 2;
+                this.y += this._my / 2;
+            }
+        }
+
+        class CurrentCircle extends Circle {
+            constructor(x, y) {
+                super(x, y);
+            }
+            drawCircle(ctx) {
+                ctx.beginPath();
+                this.r = 8;
+                ctx.arc(this.x, this.y, this.r, 0, 360);
+                ctx.closePath();
+                ctx.fillStyle = 'rgba(255, 77, 54, 0.6)';
+                ctx.fill();
+            }
+        }
+
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let w = canvas.width = canvas.offsetWidth;
+        let h = canvas.height = canvas.offsetHeight;
+        let circles = [];
+        let current_circle = new CurrentCircle(0, 0);
+
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            for (let i = 0; i < circles.length; i++) {
+                circles[i].move(w, h);
+                circles[i].drawCircle(ctx);
+                for (let j = i + 1; j < circles.length; j++) {
+                    circles[i].drawLine(ctx, circles[j]);
+                }
+            }
+            if (current_circle.x) {
+                current_circle.drawCircle(ctx);
+                for (let k = 0; k < circles.length; k++) {
+                    current_circle.drawLine(ctx, circles[k]);
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+
+        function init(num) {
+            for (let i = 0; i < num; i++) {
+                circles.push(new Circle(Math.random() * w, Math.random() * h));
+            }
+            draw();
+        }
+
+        window.addEventListener('load', function() {
+            init(60);
+        });
+        window.onmousemove = function (e) {
+            e = e || window.event;
+            current_circle.x = e.clientX;
+            current_circle.y = e.clientY;
+        }
+        window.onmouseout = function () {
+            current_circle.x = null;
+            current_circle.y = null;
+        };
+    </script>
+</body>
+</html>
